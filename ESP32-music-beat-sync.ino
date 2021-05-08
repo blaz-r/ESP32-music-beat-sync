@@ -39,11 +39,11 @@
  * following are all defines for setting limits that count as beat, calculated same as above
  */
 // frequency needs to be lower than freqMax*LED_FREQ_LIM
-#define LED_FREQ_LIM 0.65
+#define LED_FREQ_LIM 0.8
 // difference between current max magnitude and current calculated magnitude needs to be greater than magMax*LED_MAG_DIFF_LIM
-#define LED_MAG_DIFF_LIM 0.31
+#define LED_MAG_DIFF_LIM 0.05
 // current magnitued needs to be greater than magMax*LED_MAG_LIM
-#define LED_MAG_LIM 0.42
+#define LED_MAG_LIM 0.55
 
 Adafruit_NeoPixel strip = Adafruit_NeoPixel(NUM, LED_PIN, NEO_GRBW + NEO_KHZ800);
 
@@ -87,7 +87,8 @@ void analyzeMusic() {
   }
 
   FFT.DCRemoval();  // remove DC offset
-  FFT.Windowing(FFT_WIN_TYP_BLACKMAN, FFT_FORWARD); // blackman windowing works quite well, could try others
+  // commented out since it works fine w/o and we get less delay
+  // FFT.Windowing(FFT_WIN_TYP_BLACKMAN, FFT_FORWARD); // blackman windowing works quite well, could try others
   FFT.Compute(FFT_FORWARD);
   FFT.ComplexToMagnitude();
 
@@ -96,17 +97,17 @@ void analyzeMusic() {
   // update max magnitude and frequency
   magMax = max(mag, magMax);
   // ignore frequencies above 250, since we want bass
-  if(freq < 250)
+  if(freq < 360)
     freqMax = max(freq, freqMax);
 
   // dynamic adjustment of limits, values are empircal and can be tweaked, this setup works quite good
-  if(millis() - updateTime > 4200){
+  if(millis() - updateTime > 5000){
     /**
      * Adjust max magnitude according to settings. More details about limits are at the top of file, at
      * define section
      */
     if(abs(magMaxPrev - magMax) > magMax*MAX_MAG_DIFF || abs(magMax - mag) > magMax*CURR_MAG_DIFF) {
-      magMax *= 0.6; // 60% of previous value
+      magMax *= 0.8; // 80% of previous value
       magMaxPrev = magMax;  // save it for further adjsutments
     }
     /**
@@ -162,8 +163,8 @@ void controlLed() {
 }
 
 void loop() {
-  // only calcualte beat every 300ms, this suffices for music up to 200BPM
-  if(millis() - lastBeat > 300)
+  // only calcualte beat every 300ms, this suffices for music up to 185BPM
+  if(millis() - lastBeat > 320)
     analyzeMusic();
     
   controlLed();
