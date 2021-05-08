@@ -102,16 +102,16 @@ void analyzeMusic() {
   // dynamic adjustment of limits, values are empircal and can be tweaked, this setup works quite good
   if(millis() - updateTime > 4200){
     /**
-     * Adjust max magnitude if the difference from previus max magnitude is more than 13%
-     * or if difference between max magnitude and current calcuated magnitued is more than 50%
+     * Adjust max magnitude according to settings. More details about limits are at the top of file, at
+     * define section
      */
     if(abs(magMaxPrev - magMax) > magMax*MAX_MAG_DIFF || abs(magMax - mag) > magMax*CURR_MAG_DIFF) {
       magMax *= 0.6; // 60% of previous value
       magMaxPrev = magMax;  // save it for further adjsutments
     }
     /**
-     * Adjust max frequency if the difference from previus max frequency is more than 20%
-     * or if difference between max magnitude and current calcuated magnitued is more than 69%
+     * Adjust max frequency according to settings. More details about limits are at the top of file, at
+     * define section.
      */
     if(abs(freqMaxPrev - freqMax) > freqMax*MAX_FREQ_DIFF || abs(freqMax - freq) > freqMax*CURR_FREQ_DIFF) {
       freqMax *= 0.8;
@@ -165,6 +165,8 @@ void loop() {
   // only calcualte beat every 300ms, this suffices for music up to 200BPM
   if(millis() - lastBeat > 300)
     analyzeMusic();
+    
   controlLed();
+  
   prevMag = mag; // save magnitude for use in next cycle
 }
