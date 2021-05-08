@@ -43,7 +43,7 @@
 // difference between current max magnitude and current calculated magnitude needs to be greater than magMax*LED_MAG_DIFF_LIM
 #define LED_MAG_DIFF_LIM 0.05
 // current magnitued needs to be greater than magMax*LED_MAG_LIM
-#define LED_MAG_LIM 0.55
+#define LED_MAG_LIM 0.5
 
 Adafruit_NeoPixel strip = Adafruit_NeoPixel(NUM, LED_PIN, NEO_GRBW + NEO_KHZ800);
 
@@ -107,7 +107,7 @@ void analyzeMusic() {
      * define section
      */
     if(abs(magMaxPrev - magMax) > magMax*MAX_MAG_DIFF || abs(magMax - mag) > magMax*CURR_MAG_DIFF) {
-      magMax *= 0.8; // 80% of previous value
+      magMax *= 0.9; // 90% of previous value
       magMaxPrev = magMax;  // save it for further adjsutments
     }
     /**
@@ -115,8 +115,8 @@ void analyzeMusic() {
      * define section.
      */
     if(abs(freqMaxPrev - freqMax) > freqMax*MAX_FREQ_DIFF || abs(freqMax - freq) > freqMax*CURR_FREQ_DIFF) {
-      freqMax *= 0.8;
-      freqMaxPrev = freqMax;
+      freqMax *= 0.9;  // 90% of previous value
+      freqMaxPrev = freqMax; // save it for further adjsutments
     }
     
     updateTime = millis();  // save time of last update
@@ -163,8 +163,8 @@ void controlLed() {
 }
 
 void loop() {
-  // only calcualte beat every 300ms, this suffices for music up to 185BPM
-  if(millis() - lastBeat > 320)
+  // only calcualte beat every 300ms, this suffices for music up to 200BPM
+  if(millis() - lastBeat > 300)
     analyzeMusic();
     
   controlLed();
