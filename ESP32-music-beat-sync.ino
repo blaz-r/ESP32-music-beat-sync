@@ -29,6 +29,7 @@
 #define MAX_MAG_DIFF 0.13
 // difference between current max magnitude and current calculated magnitude needs to be greater than magMax*CURR_MAG_DIFF
 #define CURR_MAG_DIFF 0.5
+
 // difference between current max frequency and previous max frequency needs to be greater than freqMax*MAX_FREQ_DIFF
 #define MAX_FREQ_DIFF 0.2  
 // difference between current max frequency and current calculated frequency needs to be greater than freqMax*CURR_FREQ_DIFF
@@ -73,10 +74,10 @@ double magMax = 0;
 double freqMaxPrev = 0;
 double freqMax = 0;
 
-double lastBeat = 0; // time of last beat in millis()
+double lastBeat = 0;  // time of last beat in millis()
 
-double prevMag = 0; // previous magnitude
-double freq, mag; // peak frequency and magnitude
+double prevMag = 0;   // previous magnitude
+double freq, mag;     // peak frequency and magnitude
 
 void analyzeMusic() {
   // read samples into array
@@ -85,7 +86,7 @@ void analyzeMusic() {
     vImag[i] = 0.0;
   }
 
-  FFT.DCRemoval();  // remove DC
+  FFT.DCRemoval();  // remove DC offset
   FFT.Windowing(FFT_WIN_TYP_BLACKMAN, FFT_FORWARD); // blackman windowing works quite well, could try others
   FFT.Compute(FFT_FORWARD);
   FFT.ComplexToMagnitude();
