@@ -13,7 +13,7 @@ The limits for detection are self adjsusting, which is not done in special or co
 
 ## Important
 
-After a lot of experimenting, I've discovered that for this to work better you'll need to disable AGC (automatic gain control) on microphone. Before I did that, magnitudes and freuqencies were fluctuating way more than they do with AGC disabled. In order to do that you just short two pins, as stated in [official documentation] (https://datasheets.maximintegrated.com/en/ds/MAX9814.pdf), TH and MICBIAS pin. Here's a picture of where to short on usual board:
+After a lot of experimenting, I've discovered that for this to work better you'll need to disable AGC (automatic gain control) on microphone. Before I did that, magnitudes and freuqencies were fluctuating way more than they do with AGC disabled. In order to do that you just short two pins, as stated in [official documentation](https://datasheets.maximintegrated.com/en/ds/MAX9814.pdf), TH and MICBIAS pin. Here's a picture of where to short on usual board:
 
 ![short guide](
 https://github.com/blaz-r/ESP32-music-beat-sync/blob/main/max9814Short.jpeg)
@@ -30,4 +30,4 @@ Music is analyzed every 300 ms, so in should work for music up to 200BPM, one re
 
 The math behind setting limits is all just empirical, it was just a quick attempt setting up some percentages and tweaking them until it was working quite well. You could of course try to change those settings, but current ones are working really well for my setup. You can simply change percentages by changing defines at the beginning of the code.
 
-As stated before it's mostly an experiment, so the code isn't too clean and all, but I hope it's helpful :). If you have any advice, I'd be welcome to hear it.
+As stated before it's mostly an experiment, so the code isn't too clean and all, but I hope it's helpful :smile:. If you have any advice, I'd be welcome to hear it.
