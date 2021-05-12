@@ -40,10 +40,10 @@
  */
 // frequency needs to be lower than freqMax*LED_FREQ_LIM
 #define LED_FREQ_LIM 0.8
-// difference between current max magnitude and current calculated magnitude needs to be greater than magMax*LED_MAG_DIFF_LIM
-#define LED_MAG_DIFF_LIM 0.05
 // current magnitued needs to be greater than magMax*LED_MAG_LIM
 #define LED_MAG_LIM 0.5
+
+#define BPM 170
 
 Adafruit_NeoPixel strip = Adafruit_NeoPixel(NUM, LED_PIN, NEO_GRBW + NEO_KHZ800);
 
@@ -61,7 +61,6 @@ void setup() {
 
   Serial.begin(115200);
   delay(500);
-
 }
 
 unsigned long updateTime = 0; // limit adjustment time
@@ -76,7 +75,6 @@ double freqMax = 0;
 
 double lastBeat = 0;  // time of last beat in millis()
 
-double prevMag = 0;   // previous magnitude
 double freq, mag;     // peak frequency and magnitude
 
 void analyzeMusic() {
@@ -101,7 +99,7 @@ void analyzeMusic() {
     freqMax = max(freq, freqMax);
 
   // dynamic adjustment of limits, values are empircal and can be tweaked, this setup works quite good
-  if(millis() - updateTime > 5000){
+  if(millis() - updateTime > 4200){
     /**
      * Adjust max magnitude according to settings. More details about limits are at the top of file, at
      * define section
@@ -135,6 +133,7 @@ void logData() {
 }
 
 int fade = 0; // fading of leds
+double beatTime = 60.0 / BPM * 1000;
 
 /* dynamically adjust the required limits for beat to count
  * values here are mostly empirically set, we want frequency to be lover than 65% of peak frequency
@@ -142,9 +141,8 @@ int fade = 0; // fading of leds
  * to be at least 42% of peak magnitude
  */
 void controlLed() {
-  if(freq < freqMax*LED_FREQ_LIM && abs(mag - prevMag) > magMax*LED_MAG_DIFF_LIM && mag > magMax*LED_MAG_LIM) {
-    logData();
-     
+  if(freq < freqMax*LED_FREQ_LIM && millis() - lastBeat > beatTime && mag > magMax*LED_MAG_LIM) {
+    logData(); 
     uint32_t color = strip.Color(0, 0, 0, 100);
     strip.fill(color);
 
@@ -164,10 +162,8 @@ void controlLed() {
 
 void loop() {
   // only calcualte beat every 300ms, this suffices for music up to 200BPM
-  if(millis() - lastBeat > 300)
+  if(millis() - lastBeat > beatTime)
     analyzeMusic();
     
   controlLed();
-  
-  prevMag = mag; // save magnitude for use in next cycle
 }
