@@ -94,12 +94,12 @@ float freq, mag;     // peak frequency and magnitude
 void analyzeMusic() {
   // read samples into array
   for (uint16_t i = 0; i < samples; i++) {
-    //vReal[i] = adc1_get_raw(ADC1_CHANNEL_4);
-    unsigned long old_time = micros();
-    vReal[i] = analogRead(MIC_PIN);
+    // uncomment this to find sampling period
+    //unsigned long old_time = micros();
+    vReal[i] = adc1_get_raw(ADC1_CHANNEL_4);
     vImag[i] = 0.0;
-    unsigned long new_time = micros();
-    Serial.println(new_time - old_time);
+    //unsigned long new_time = micros();
+    //Serial.println(new_time - old_time);
   }
 
   FFT.dcRemoval();  // remove DC offset
