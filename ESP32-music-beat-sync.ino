@@ -7,6 +7,7 @@
 
 #include <arduinoFFT.h>
 #include <Adafruit_NeoPixel.h>
+#include <driver/adc.h>
 
 #define LED_PIN 13
 #define NUM 29
@@ -43,17 +44,27 @@
 // current magnitued needs to be greater than magMax*LED_MAG_LIM
 #define LED_MAG_LIM 0.5
 
-#define BPM 170
+#define BPM 200
+
+
+// Define this to use reciprocal multiplication for division and some more speedups that might decrease precision
+#define FFT_SPEED_OVER_PRECISION
+
+// Define this to use a low-precision square root approximation instead of the regular sqrt() call
+// This might only work for specific use cases, but is significantly faster. Only works for ArduinoFFT<float>.
+// #define FFT_SQRT_APPROXIMATION
 
 Adafruit_NeoPixel strip = Adafruit_NeoPixel(NUM, LED_PIN, NEO_GRBW + NEO_KHZ800);
 
 const uint16_t samples = 256;               // This value MUST ALWAYS be a power of 2
-const uint16_t samplingFrequency = 20000;   
+const uint16_t samplingFrequency = 25000;   // sampling freq = (1 / sampling period)
 
-double vReal[samples];
-double vImag[samples];
+float vReal[samples];
+float vImag[samples];
 
-arduinoFFT FFT = arduinoFFT(vReal, vImag, samples, samplingFrequency);
+float weighingFactors[samples];
+
+ArduinoFFT<float> FFT = ArduinoFFT<float>(vReal, vImag, samples, samplingFrequency, weighingFactors);
 
 void setup() {
   strip.begin();
@@ -61,36 +72,43 @@ void setup() {
 
   Serial.begin(115200);
   delay(500);
+
+  adc1_config_width(ADC_WIDTH_BIT_12);
+  adc1_config_channel_atten(ADC1_CHANNEL_4, ADC_ATTEN_DB_11);
 }
 
 unsigned long updateTime = 0; // limit adjustment time
 
 // current and previus max magnitued, used for dynamic adjustment
-double magMaxPrev = 0;
-double magMax = 0;
+float magMaxPrev = 0;
+float magMax = 0;
 
 // current and previus max frequency, used for dynamic adjustment
-double freqMaxPrev = 0;
-double freqMax = 0;
+float freqMaxPrev = 0;
+float freqMax = 0;
 
-double lastBeat = 0;  // time of last beat in millis()
+float lastBeat = 0;  // time of last beat in millis()
 
-double freq, mag;     // peak frequency and magnitude
+float freq, mag;     // peak frequency and magnitude
 
 void analyzeMusic() {
   // read samples into array
   for (uint16_t i = 0; i < samples; i++) {
+    //vReal[i] = adc1_get_raw(ADC1_CHANNEL_4);
+    unsigned long old_time = micros();
     vReal[i] = analogRead(MIC_PIN);
     vImag[i] = 0.0;
+    unsigned long new_time = micros();
+    Serial.println(new_time - old_time);
   }
 
-  FFT.DCRemoval();  // remove DC offset
+  FFT.dcRemoval();  // remove DC offset
   // commented out since it works fine w/o and we get less delay
   // FFT.Windowing(FFT_WIN_TYP_BLACKMAN, FFT_FORWARD); // blackman windowing works quite well, could try others
-  FFT.Compute(FFT_FORWARD);
-  FFT.ComplexToMagnitude();
+  FFT.compute(FFTDirection::Forward);
+  FFT.complexToMagnitude();
 
-  FFT.MajorPeak(&freq, &mag); // save current peak frequency and magnitued
+  FFT.majorPeak(freq, mag); // save current peak frequency and magnitued
 
   // update max magnitude and frequency
   magMax = max(mag, magMax);
