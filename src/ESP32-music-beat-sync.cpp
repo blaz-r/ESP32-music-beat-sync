@@ -14,38 +14,19 @@
 
 #define MIC_PIN 32
 
-/*  
- *  following are defines used for updating limits, you can adjust if you want
- *  it's all calcualted as X < Y * define, where X is current difference, 
- *  Y is reference value of which we want to get percentage of
- *  example: 
- *    #define LED_FREQ_LIM 0.65
- *    freq < freqMax*LED_FREQ_LIM 
- *    
- *  means that frequency needs to be smaller than 65% of peak frequency.
- *  following defines tell that percentage factor:
- */
- 
-// difference between current max magnitude and previous max magnitude needs to be greater than magMax*MAX_MAG_DIFF
-#define MAX_MAG_DIFF 0.13
-// difference between current max magnitude and current calculated magnitude needs to be greater than magMax*CURR_MAG_DIFF
-#define CURR_MAG_DIFF 0.5
+// frequency needs to be lower than LED_FREQ_LIM
+#define LED_FREQ_LIM 150
 
-// difference between current max frequency and previous max frequency needs to be greater than freqMax*MAX_FREQ_DIFF
-#define MAX_FREQ_DIFF 0.2  
-// difference between current max frequency and current calculated frequency needs to be greater than freqMax*CURR_FREQ_DIFF
-#define CURR_FREQ_DIFF 0.7 
+// magnitude needs to be greater than 1.15*avgMag
+#define LED_MAG_LIM 1.15
 
-/*
- * following are all defines for setting limits that count as beat, calculated same as above
- */
-// frequency needs to be lower than freqMax*LED_FREQ_LIM
-#define LED_FREQ_LIM 0.8
-// current magnitued needs to be greater than magMax*LED_MAG_LIM
-#define LED_MAG_LIM 0.5
+// average magnitude is calculated by dividing with avgSampleCount, which is limited to AVG_COUNT_LIMIT
+#define AVG_COUNT_LIMIT 500
 
-#define BPM 200
+// once avgSampleCount reaches AVG_COUNT_LIMIT, it gets reset back to AVG_COUNT_LOWER
+#define AVG_COUNT_LOWER 100
 
+#define BPM 180
 
 // Define this to use reciprocal multiplication for division and some more speedups that might decrease precision
 #define FFT_SPEED_OVER_PRECISION
@@ -56,7 +37,7 @@
 
 Adafruit_NeoPixel strip = Adafruit_NeoPixel(NUM, LED_PIN, NEO_GRBW + NEO_KHZ800);
 
-const uint16_t samples = 256;               // This value MUST ALWAYS be a power of 2
+const uint16_t samples = 1024;               // This value MUST ALWAYS be a power of 2
 const uint16_t samplingFrequency = 25000;   // sampling freq = (1 / sampling period)
 
 float vReal[samples];
@@ -77,15 +58,8 @@ void setup() {
   adc1_config_channel_atten(ADC1_CHANNEL_4, ADC_ATTEN_DB_11);
 }
 
-unsigned long updateTime = 0; // limit adjustment time
-
-// current and previus max magnitued, used for dynamic adjustment
-float magMaxPrev = 0;
-float magMax = 0;
-
-// current and previus max frequency, used for dynamic adjustment
-float freqMaxPrev = 0;
-float freqMax = 0;
+float magAvg = 0;
+int avgSampleCount = 1;
 
 float lastBeat = 0;  // time of last beat in millis()
 
@@ -108,34 +82,22 @@ void analyzeMusic() {
   FFT.compute(FFTDirection::Forward);
   FFT.complexToMagnitude();
 
-  FFT.majorPeak(freq, mag); // save current peak frequency and magnitued
+  FFT.majorPeak(freq, mag); // save current peak frequency and magnitude
 
-  // update max magnitude and frequency
-  magMax = max(mag, magMax);
-  // ignore frequencies above 250, since we want bass
-  if(freq < 360)
-    freqMax = max(freq, freqMax);
+  // calculate avg of 10 low frequencies
+  mag = 0;
+  for (int b = 0; b < 10; b++) {
+    mag += vReal[b];
+  }
+  mag /= 10;
 
-  // dynamic adjustment of limits, values are empircal and can be tweaked, this setup works quite good
-  if(millis() - updateTime > 4200){
-    /**
-     * Adjust max magnitude according to settings. More details about limits are at the top of file, at
-     * define section
-     */
-    if(abs(magMaxPrev - magMax) > magMax*MAX_MAG_DIFF || abs(magMax - mag) > magMax*CURR_MAG_DIFF) {
-      magMax *= 0.9; // 90% of previous value
-      magMaxPrev = magMax;  // save it for further adjsutments
-    }
-    /**
-     * Adjust max frequency according to settings. More details about limits are at the top of file, at
-     * define section.
-     */
-    if(abs(freqMaxPrev - freqMax) > freqMax*MAX_FREQ_DIFF || abs(freqMax - freq) > freqMax*CURR_FREQ_DIFF) {
-      freqMax *= 0.9;  // 90% of previous value
-      freqMaxPrev = freqMax; // save it for further adjsutments
-    }
-    
-    updateTime = millis();  // save time of last update
+  // adjust running average
+  magAvg = magAvg + (mag - magAvg) / avgSampleCount;
+  avgSampleCount++;
+
+  // when sample count reaches limit, reset to lower value, this way we avoid slow change on music change
+  if (avgSampleCount > AVG_COUNT_LIMIT) {
+    avgSampleCount = AVG_COUNT_LOWER;
   }
 }
 
@@ -144,22 +106,20 @@ void logData() {
   Serial.print(freq, 6);
   Serial.print("Hz -> ");
   Serial.print(mag, 6);
-  Serial.print(", Vmax:");
-  Serial.print(magMax);
-  Serial.print(", Fmax:");
-  Serial.println(freqMax);   
+  Serial.print(", Favg:");
+  Serial.println(magAvg);  
 }
 
 int fade = 0; // fading of leds
 double beatTime = 60.0 / BPM * 1000;
 
 /* dynamically adjust the required limits for beat to count
- * values here are mostly empirically set, we want frequency to be lover than 65% of peak frequency
- * difference between previous beat magnitued and current needs to be at least 31%, and magnitued needs
- * to be at least 42% of peak magnitude
+ * values/limits here are mostly empirically set
+ * for values to count as beat, we want frequency to be below LED_FREQ_LIM
+ * and magnitude needs to be at least magAvg * LED_AVG_MAG_LIM, where LED_AVG_MAG_LIM is by default 1.15 so 115%
  */
 void controlLed() {
-  if(freq < freqMax*LED_FREQ_LIM && millis() - lastBeat > beatTime && mag > magMax*LED_MAG_LIM) {
+  if(freq < LED_FREQ_LIM && millis() - lastBeat > beatTime && mag > magAvg * LED_MAG_LIM) {
     logData(); 
     uint32_t color = strip.Color(0, 0, 0, 100);
     strip.fill(color);
@@ -179,7 +139,7 @@ void controlLed() {
 }
 
 void loop() {
-  // only calcualte beat every 300ms, this suffices for music up to 200BPM
+  // only calcualte beat every 333ms, this suffices for music up to 180BPM
   if(millis() - lastBeat > beatTime)
     analyzeMusic();
     
